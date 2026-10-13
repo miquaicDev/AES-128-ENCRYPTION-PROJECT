@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
-// Test 1: encrypt 4 block liên tiếp (1 block/chu kỳ)  -> so với ciphertext
-// Test 2: decrypt (đưa ciphertext vào) có chèn bubble  -> so với plaintext
-// Test 3: load lại IV và encrypt tiếp tục từ test 2
+// Test 1: encrypt 4 consecutive blocks (1 block/cycle) -> compare with ciphertext
+// Test 2: decrypt (feed ciphertext) with inserted bubbles -> compare with plaintext
+// Test 3: reload the IV and continue encryption from test 2
 module tb_aes_ctr_mode;
     parameter CLK_PERIOD = 10;
     parameter NBLK = 4;
@@ -68,7 +68,7 @@ module tb_aes_ctr_mode;
             end
             else begin
                 err_cnt = err_cnt + 1;
-                $display("[%0t] ERROR: valid_out thừa (blk %0d)", $time, out_cnt);
+                $display("[%0t] ERROR: unexpected valid_out (blk %0d)", $time, out_cnt);
             end
             out_cnt = out_cnt + 1;
         end
@@ -111,7 +111,7 @@ module tb_aes_ctr_mode;
         end
     endtask
 
-    task send_idle; //for bubble test
+    task send_idle; // for bubble test
         begin
             @(posedge clk); #1;
             valid_in = 1'b0;
@@ -119,7 +119,7 @@ module tb_aes_ctr_mode;
         end
     endtask
 
-    // Đợi pipeline xả hết
+    // Wait for the pipeline to drain
     task drain;
         begin
             @(posedge clk); #1;
@@ -133,7 +133,7 @@ module tb_aes_ctr_mode;
         begin
             if (out_cnt != NBLK) begin
                 err_cnt = err_cnt + 1;
-                $display("ERROR %0s: nhận %0d block, kỳ vọng %0d", name, out_cnt, NBLK);
+                $display("ERROR %0s: received %0d blocks, expected %0d", name, out_cnt, NBLK);
             end
         end
     endtask
@@ -149,7 +149,7 @@ module tb_aes_ctr_mode;
         do_reset;
 
         //--------------------------------------------------------------
-        // Test 1: Encrypt, 4 block liên tiếp
+        // Test 1: Encrypt 4 consecutive blocks
         //--------------------------------------------------------------
         $display("=== Test 1: encrypt back-to-back ===");
         for (i = 0; i < NBLK; i = i + 1) begin
@@ -165,9 +165,9 @@ module tb_aes_ctr_mode;
         check_phase("Test1");
 
         //--------------------------------------------------------------
-        // Test 2: Decrypt (ciphertext -> plaintext), có bubble
+        // Test 2: Decrypt (ciphertext -> plaintext) with bubbles
         //--------------------------------------------------------------
-        $display("=== Test 2: decrypt với bubble ===");
+        $display("=== Test 2: decrypt with bubbles ===");
         for (i = 0; i < NBLK; i = i + 1) begin
             in_mem[i]  = ct[i];
             exp_mem[i] = pt[i];
@@ -185,9 +185,9 @@ module tb_aes_ctr_mode;
         check_phase("Test2");
 
         //--------------------------------------------------------------
-        // Test 3: load IV giữa 2 test rồi encrypt liền sau đó
+        // Test 3: reload the IV between tests, then encrypt immediately
         //--------------------------------------------------------------
-        $display("=== Test 3: load IV lại, encrypt ===");
+        $display("=== Test 3: reload IV, encrypt ===");
         for (i = 0; i < NBLK; i = i + 1) begin
             in_mem[i]  = pt[i];
             exp_mem[i] = ct[i];
@@ -199,13 +199,13 @@ module tb_aes_ctr_mode;
         check_phase("Test3");
 
         //--------------------------------------------------------------
-        // Kết quả
+        // Results
         //--------------------------------------------------------------
         $display("------------------------------------------");
         if (err_cnt == 0)
-            $display("PASS: %0d block đúng, 0 lỗi", total_checked);
+            $display("PASS: %0d blocks correct, 0 errors", total_checked);
         else
-            $display("FAIL: %0d lỗi", err_cnt);
+            $display("FAIL: %0d errors", err_cnt);
         $display("------------------------------------------");
         $finish;
     end
@@ -227,17 +227,17 @@ endmodule
 
 
 
-// // Test Vector của NIST (AES-128 CTR):
+// // NIST test vector (AES-128 CTR):
 
 // // Key: 2b7e151628aed2a6abf7158809cf4f3c
 
-// // IV ban đầu: f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
+// // Initial IV: f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
 
-// // Block 1 Plaintext: 6bc1bee22e409f96e93d7e117393172a
+// // Block 1 plaintext: 6bc1bee22e409f96e93d7e117393172a
 
-// // -> Block 1 Ciphertext (Kỳ vọng): 874d6191b620e3261bef6864990db6ce
+// // -> Block 1 ciphertext (expected): 874d6191b620e3261bef6864990db6ce
 
-// // Block 2 Plaintext: ae2d8a571e03ac9c9eb76fac45af8e51
+// // Block 2 plaintext: ae2d8a571e03ac9c9eb76fac45af8e51
 
-// // -> Block 2 Ciphertext (Kỳ vọng): 9806f66b7970fdff8617187bb9fffdff
+// // -> Block 2 ciphertext (expected): 9806f66b7970fdff8617187bb9fffdff
 //https://www.codertools.net/tools/aes.php
